@@ -32,6 +32,7 @@ def get_kitti_info_path(idx,
         file_path = Path('training') / info_type / img_idx_str
     else:
         file_path = Path('testing') / info_type / img_idx_str
+        # file_path = Path('validation') / info_type / img_idx_str
     if exist_check and not (prefix / file_path).exists():
         raise ValueError('file not exist: {}'.format(file_path))
     if relative_path:
@@ -355,8 +356,28 @@ class WaymoInfoGatherer:
         pc_info = {'num_features': 6}
         calib_info = {}
 
-        image_info = {'image_idx': idx}
+        # image_info = {'image_idx': idx}
         annotations = None
+
+        image_infos=[]
+        for i in range(5):
+            image_info = {'image_idx': idx}
+            image_info['image_path'] = get_image_path(
+                idx,
+                self.path,
+                self.training,
+                self.relative_path,
+                info_type='image_' + str(i),
+                use_prefix_id=True)
+            if self.with_imageshape:
+                img_path = image_info['image_path']
+                if self.relative_path:
+                    img_path = str(root_path / img_path)
+                # io using PIL is significantly faster than skimage
+                w, h = Image.open(img_path).size
+                image_info['image_shape'] = np.array((h, w), dtype=np.int32)
+            image_infos.append(image_info)
+
         if self.velodyne:
             pc_info['velodyne_path'] = get_velodyne_path(
                 idx,
@@ -372,20 +393,20 @@ class WaymoInfoGatherer:
                         relative_path=False,
                         use_prefix_id=True)) as f:
                 info['timestamp'] = np.int64(f.read())
-        image_info['image_path'] = get_image_path(
-            idx,
-            self.path,
-            self.training,
-            self.relative_path,
-            info_type='image_0',
-            use_prefix_id=True)
-        if self.with_imageshape:
-            img_path = image_info['image_path']
-            if self.relative_path:
-                img_path = str(root_path / img_path)
-            # io using PIL is significantly faster than skimage
-            w, h = Image.open(img_path).size
-            image_info['image_shape'] = np.array((h, w), dtype=np.int32)
+        # image_info['image_path'] = get_image_path(
+        #     idx,
+        #     self.path,
+        #     self.training,
+        #     self.relative_path,
+        #     info_type='image_0',
+        #     use_prefix_id=True)
+        # if self.with_imageshape:
+        #     img_path = image_info['image_path']
+        #     if self.relative_path:
+        #         img_path = str(root_path / img_path)
+        #     # io using PIL is significantly faster than skimage
+        #     w, h = Image.open(img_path).size
+        #     image_info['image_shape'] = np.array((h, w), dtype=np.int32)
         if self.label_info:
             label_path = get_label_path(
                 idx,
@@ -397,7 +418,7 @@ class WaymoInfoGatherer:
             if self.relative_path:
                 label_path = str(root_path / label_path)
             annotations = get_label_anno(label_path)
-        info['image'] = image_info
+        info['image'] = image_infos
         info['point_cloud'] = pc_info
         if self.calib:
             calib_path = get_calib_path(
@@ -434,18 +455,27 @@ class WaymoInfoGatherer:
             else:
                 rect_4x4 = R0_rect
 
-            Tr_velo_to_cam = np.array([
-                float(info) for info in lines[6].split(' ')[1:13]
-            ]).reshape([3, 4])
-            if self.extend_matrix:
-                Tr_velo_to_cam = _extend_matrix(Tr_velo_to_cam)
+            # Tr_velo_to_cam = np.array([
+            #     float(info) for info in lines[6].split(' ')[1:13]
+            # ]).reshape([3, 4])
+            # if self.extend_matrix:
+            #     Tr_velo_to_cam = _extend_matrix(Tr_velo_to_cam)
+        
+            for i in range(5):
+                Tr_velo_to_cam = np.array([
+                    float(info) for info in lines[i+6].split(' ')[1:13]
+                ]).reshape([3, 4])
+                if self.extend_matrix:
+                    Tr_velo_to_cam = _extend_matrix(Tr_velo_to_cam)
+                calib_info['Tr_velo_to_cam_'+str(i)] = Tr_velo_to_cam
+
             calib_info['P0'] = P0
             calib_info['P1'] = P1
             calib_info['P2'] = P2
             calib_info['P3'] = P3
             calib_info['P4'] = P4
             calib_info['R0_rect'] = rect_4x4
-            calib_info['Tr_velo_to_cam'] = Tr_velo_to_cam
+            # calib_info['Tr_velo_to_cam'] = Tr_velo_to_cam
             info['calib'] = calib_info
         if self.pose:
             pose_path = get_pose_path(

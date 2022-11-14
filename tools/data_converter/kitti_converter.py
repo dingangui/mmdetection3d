@@ -84,11 +84,15 @@ class _NumPointsInGTCalculater:
             v_path, dtype=np.float32,
             count=-1).reshape([-1, self.num_features])
         rect = calib['R0_rect']
-        Trv2c = calib['Tr_velo_to_cam']
+        # Trv2c = calib['Tr_velo_to_cam']
+        Trv2c = []
+        for i in range(5):
+            Trv2c.append(calib['Tr_velo_to_cam_' + str(i)])
+
         P2 = calib['P2']
         if self.remove_outside:
             points_v = box_np_ops.remove_outside_points(
-                points_v, rect, Trv2c, P2, image_info['image_shape'])
+                points_v, rect, Trv2c[2], P2, image_info['image_shape'])
         annos = info['annos']
         num_obj = len([n for n in annos['name'] if n != 'DontCare'])
         dims = annos['dimensions'][:num_obj]
@@ -96,8 +100,16 @@ class _NumPointsInGTCalculater:
         rots = annos['rotation_y'][:num_obj]
         gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]],
                                          axis=1)
+        # gt_boxes_lidar = box_np_ops.box_camera_to_lidar(
+        #     gt_boxes_camera, rect, Trv2c)
         gt_boxes_lidar = box_np_ops.box_camera_to_lidar(
-            gt_boxes_camera, rect, Trv2c)
+            gt_boxes_camera[np.where(annos['camera_id'] == 0)], rect, Trv2c[0])
+        for i in range(4):
+            gt_boxes_lidar_single = box_np_ops.box_camera_to_lidar(
+                gt_boxes_camera[np.where(annos['camera_id'] == (i + 1))], rect, Trv2c[i + 1])
+            gt_boxes_lidar = np.concatenate(
+                (gt_boxes_lidar, gt_boxes_lidar_single), axis=0)
+
         indices = box_np_ops.points_in_rbbox(points_v[:, :3], gt_boxes_lidar)
         num_points_in_gt = indices.sum(0)
         num_ignored = len(annos['dimensions']) - num_obj
@@ -252,6 +264,8 @@ def create_waymo_info_file(data_path,
     val_img_ids = _read_imageset_file(str(imageset_folder / 'val.txt'))
     test_img_ids = _read_imageset_file(str(imageset_folder / 'test.txt'))
 
+    test_img_ids = [ids - 2000000 for ids in test_img_ids]
+
     print('Generate info. this may take several minutes.')
     if save_path is None:
         save_path = Path(data_path)
@@ -266,6 +280,15 @@ def create_waymo_info_file(data_path,
         relative_path=relative_path,
         max_sweeps=max_sweeps,
         num_worker=workers)
+    # waymo_infos_gatherer_val = WaymoInfoGatherer(
+    #     data_path,
+    #     training=False,
+    #     velodyne=True,
+    #     calib=True,
+    #     pose=True,
+    #     relative_path=relative_path,
+    #     max_sweeps=max_sweeps,
+    #     num_worker=workers)
     waymo_infos_gatherer_test = WaymoInfoGatherer(
         data_path,
         training=False,
@@ -288,18 +311,19 @@ def create_waymo_info_file(data_path,
     filename = save_path / f'{pkl_prefix}_infos_train.pkl'
     print(f'Waymo info train file is saved to {filename}')
     mmcv.dump(waymo_infos_train, filename)
-    waymo_infos_val = waymo_infos_gatherer_trainval.gather(val_img_ids)
-    num_points_in_gt_calculater.calculate(waymo_infos_val)
-    filename = save_path / f'{pkl_prefix}_infos_val.pkl'
-    print(f'Waymo info val file is saved to {filename}')
-    mmcv.dump(waymo_infos_val, filename)
-    filename = save_path / f'{pkl_prefix}_infos_trainval.pkl'
-    print(f'Waymo info trainval file is saved to {filename}')
-    mmcv.dump(waymo_infos_train + waymo_infos_val, filename)
-    waymo_infos_test = waymo_infos_gatherer_test.gather(test_img_ids)
-    filename = save_path / f'{pkl_prefix}_infos_test.pkl'
-    print(f'Waymo info test file is saved to {filename}')
-    mmcv.dump(waymo_infos_test, filename)
+    # waymo_infos_val = waymo_infos_gatherer_trainval.gather(val_img_ids)
+    # waymo_infos_val = waymo_infos_gatherer_val.gather(val_img_ids)
+    # num_points_in_gt_calculater.calculate(waymo_infos_val)
+    # filename = save_path / f'{pkl_prefix}_infos_val.pkl'
+    # print(f'Waymo info val file is saved to {filename}')
+    # mmcv.dump(waymo_infos_val, filename)
+    # filename = save_path / f'{pkl_prefix}_infos_trainval.pkl'
+    # print(f'Waymo info trainval file is saved to {filename}')
+    # mmcv.dump(waymo_infos_train + waymo_infos_val, filename)
+    # waymo_infos_test = waymo_infos_gatherer_test.gather(test_img_ids)
+    # filename = save_path / f'{pkl_prefix}_infos_test.pkl'
+    # print(f'Waymo info test file is saved to {filename}')
+    # mmcv.dump(waymo_infos_test, filename)
 
 
 def _create_reduced_point_cloud(data_path,
