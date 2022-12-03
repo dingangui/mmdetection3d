@@ -190,14 +190,16 @@ def waymo_data_prep(root_path,
     out_dir = osp.join(out_dir, 'kitti_format')
     kitti.create_waymo_info_file(
         out_dir, info_prefix, max_sweeps=max_sweeps, workers=workers)
-    GTDatabaseCreater(
-        'WaymoDataset',
-        out_dir,
-        info_prefix,
-        f'{out_dir}/{info_prefix}_infos_train.pkl',
-        relative_path=False,
-        with_mask=False,
-        num_worker=workers).create()
+
+    # Generate gt_database and gt_info
+    # GTDatabaseCreater(
+    #     'WaymoDataset',
+    #     out_dir,
+    #     info_prefix,
+    #     f'{out_dir}/{info_prefix}_infos_train.pkl',
+    #     relative_path=False,
+    #     with_mask=False,
+    #     num_worker=workers).create()
 
 
 parser = argparse.ArgumentParser(description='Data converter arg parser')

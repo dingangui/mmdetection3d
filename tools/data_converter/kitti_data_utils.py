@@ -148,8 +148,10 @@ def get_label_anno(label_path):
                                         for x in content]).reshape(-1, 3)
     annotations['rotation_y'] = np.array([float(x[14])
                                           for x in content]).reshape(-1)
-    if len(content) != 0 and len(content[0]) == 16:  # have score
-        annotations['score'] = np.array([float(x[15]) for x in content])
+    annotations['speed'] = np.array([[float(info) for info in x[15:17]]
+                                        for x in content]).reshape(-1, 2)
+    if len(content) != 0 and len(content[0]) == 18:  # have score
+        annotations['score'] = np.array([float(x[17]) for x in content])
     else:
         annotations['score'] = np.zeros((annotations['bbox'].shape[0], ))
     index = list(range(num_objects)) + [-1] * (num_gt - num_objects)
@@ -353,7 +355,8 @@ class WaymoInfoGatherer:
     def gather_single(self, idx):
         root_path = Path(self.path)
         info = {}
-        pc_info = {'num_features': 6}
+        # pc_info = {'num_features': 6}
+        pc_info = {}
         calib_info = {}
 
         # image_info = {'image_idx': idx}
@@ -460,7 +463,7 @@ class WaymoInfoGatherer:
             # ]).reshape([3, 4])
             # if self.extend_matrix:
             #     Tr_velo_to_cam = _extend_matrix(Tr_velo_to_cam)
-        
+            
             for i in range(5):
                 Tr_velo_to_cam = np.array([
                     float(info) for info in lines[i+6].split(' ')[1:13]
@@ -468,7 +471,7 @@ class WaymoInfoGatherer:
                 if self.extend_matrix:
                     Tr_velo_to_cam = _extend_matrix(Tr_velo_to_cam)
                 calib_info['Tr_velo_to_cam_'+str(i)] = Tr_velo_to_cam
-
+            
             calib_info['P0'] = P0
             calib_info['P1'] = P1
             calib_info['P2'] = P2
