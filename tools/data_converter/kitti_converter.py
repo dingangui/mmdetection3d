@@ -316,22 +316,22 @@ def create_waymo_info_file(data_path,
     mmcv.dump(waymo_infos_train, filename)
 
     # Generate val info
-    # waymo_infos_val = waymo_infos_gatherer_trainval.gather(val_img_ids)
-    # num_points_in_gt_calculater.calculate(waymo_infos_val)
-    # filename = save_path / f'{pkl_prefix}_infos_val.pkl'
-    # print(f'Waymo info val file is saved to {filename}')
-    # mmcv.dump(waymo_infos_val, filename)
+    waymo_infos_val = waymo_infos_gatherer_trainval.gather(val_img_ids)
+    num_points_in_gt_calculater.calculate(waymo_infos_val)
+    filename = save_path / f'{pkl_prefix}_infos_val.pkl'
+    print(f'Waymo info val file is saved to {filename}')
+    mmcv.dump(waymo_infos_val, filename)
     
     # Generate trainval info
-    # filename = save_path / f'{pkl_prefix}_infos_trainval.pkl'
-    # print(f'Waymo info trainval file is saved to {filename}')
-    # mmcv.dump(waymo_infos_train + waymo_infos_val, filename)
+    filename = save_path / f'{pkl_prefix}_infos_trainval.pkl'
+    print(f'Waymo info trainval file is saved to {filename}')
+    mmcv.dump(waymo_infos_train + waymo_infos_val, filename)
 
     # Generate test info
-    # waymo_infos_test = waymo_infos_gatherer_test.gather(test_img_ids)
-    # filename = save_path / f'{pkl_prefix}_infos_test.pkl'
-    # print(f'Waymo info test file is saved to {filename}')
-    # mmcv.dump(waymo_infos_test, filename)
+    waymo_infos_test = waymo_infos_gatherer_test.gather(test_img_ids)
+    filename = save_path / f'{pkl_prefix}_infos_test.pkl'
+    print(f'Waymo info test file is saved to {filename}')
+    mmcv.dump(waymo_infos_test, filename)
 
 
 def _create_reduced_point_cloud(data_path,
