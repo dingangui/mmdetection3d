@@ -252,88 +252,88 @@ class Waymo2KITTI(object):
         return len(self.tfrecord_pathnames)
 
     def save_seg(self, frame, file_idx, frame_idx):
-            """Parse and save the images in png format.
+        """Parse and save the images in png format.
+        基于 waymo-open-dataset 2.6.0 才能解析
+        Args:
+            frame (:obj:`Frame`): Open dataset frame proto.
+            file_idx (int): Current file index.
+            frame_idx (int): Current frame index.
+        """
+        for img in frame.images:
+            if img.camera_segmentation_label.panoptic_label:
+                single_anno = {}
+                seg_path = f'{self.seg_save_dir}{str(img.name - 1)}/' + \
+                    f'{self.prefix}{str(file_idx).zfill(3)}' + \
+                    f'{str(frame_idx).zfill(3)}.png'
+                img_path = f'{self.image_save_dir}{str(img.name - 1)}/' + \
+                    f'{self.prefix}{str(file_idx).zfill(3)}' + \
+                    f'{str(frame_idx).zfill(3)}.png'
+                
+                imgname = img_path.split('kitti_format/')[1]
+                segname = seg_path.split('kitti_format/')[1]
+                single_anno['imgname'] = imgname
+                single_anno['segname'] = segname
+                single_seg_anno = []
 
-            Args:
-                frame (:obj:`Frame`): Open dataset frame proto.
-                file_idx (int): Current file index.
-                frame_idx (int): Current frame index.
-            """
-            for img in frame.images:
-                if img.camera_segmentation_label.panoptic_label:
-                    single_anno = {}
-                    seg_path = f'{self.seg_save_dir}{str(img.name - 1)}/' + \
-                        f'{self.prefix}{str(file_idx).zfill(3)}' + \
-                        f'{str(frame_idx).zfill(3)}.png'
-                    img_path = f'{self.image_save_dir}{str(img.name - 1)}/' + \
-                        f'{self.prefix}{str(file_idx).zfill(3)}' + \
-                        f'{str(frame_idx).zfill(3)}.png'
-                    
-                    imgname = img_path.split('kitti_format/')[1]
-                    segname = seg_path.split('kitti_format/')[1]
-                    single_anno['imgname'] = imgname
-                    single_anno['segname'] = segname
-                    single_seg_anno = []
+                segmentation_proto = img.camera_segmentation_label
+                panoptic_label = decode_single_panoptic_label_from_proto(segmentation_proto)
+                # sementic_label, instance_label = camera_segmentation_utils.decode_semantic_and_instance_labels_from_panoptic_label(
+                #     panoptic_label,
+                #     segmentation_proto.panoptic_label_divisor
+                # )
 
-                    segmentation_proto = img.camera_segmentation_label
-                    panoptic_label = decode_single_panoptic_label_from_proto(segmentation_proto)
-                    # sementic_label, instance_label = camera_segmentation_utils.decode_semantic_and_instance_labels_from_panoptic_label(
-                    #     panoptic_label,
-                    #     segmentation_proto.panoptic_label_divisor
-                    # )
+                panoptic_label = panoptic_label[:,:,0]
 
-                    panoptic_label = panoptic_label[:,:,0]
+                H, W = panoptic_label.shape
+                segmentimage = np.zeros((H,W,3))
+                bkmask = np.ones((H,W))
 
-                    H, W = panoptic_label.shape
-                    segmentimage = np.zeros((H,W,3))
-                    bkmask = np.ones((H,W))
+                color_box = []
 
-                    color_box = []
-
-                    panoptic_instances = list(np.unique(panoptic_label))
-                    for category_id in panoptic_instances:
-                        if (category_id // segmentation_proto.panoptic_label_divisor) == cs_pb2.CameraSegmentation.TYPE_UNDEFINED:
-                            continue
-                        color = random.choice(PALETTE)
-                        while color in color_box:
-                            color = random.choice(PALETTE)
-                        color_box.append(color)
-                        mask = (panoptic_label == category_id)
-                        bkmask[mask==1] = 0
-                        segmentimage[mask] = color
-
-                        B = color[0]
-                        G = color[1]
-                        R = color[2]
-
-                        single_seg_anno.append(
-                            dict(
-                                category_id = category_id // segmentation_proto.panoptic_label_divisor ,
-                                id = R+G*256+B*256*256
-                            )
-                        )
+                panoptic_instances = list(np.unique(panoptic_label))
+                for category_id in panoptic_instances:
+                    if (category_id // segmentation_proto.panoptic_label_divisor) == cs_pb2.CameraSegmentation.TYPE_UNDEFINED:
+                        continue
                     color = random.choice(PALETTE)
                     while color in color_box:
                         color = random.choice(PALETTE)
                     color_box.append(color)
-                    segmentimage[bkmask==1] = color
+                    mask = (panoptic_label == category_id)
+                    bkmask[mask==1] = 0
+                    segmentimage[mask] = color
+
                     B = color[0]
                     G = color[1]
                     R = color[2]
 
                     single_seg_anno.append(
                         dict(
-                            category_id = cs_pb2.CameraSegmentation.TYPE_UNDEFINED ,
+                            category_id = category_id // segmentation_proto.panoptic_label_divisor ,
                             id = R+G*256+B*256*256
                         )
                     )
-                    single_anno['segmentation'] = single_seg_anno
-                    single_anno_json_dir = f'{self.seg_json_save_dir}{str(img.name - 1)}/' + \
-                        f'{self.prefix}{str(file_idx).zfill(3)}' + \
-                        f'{str(frame_idx).zfill(3)}.json'
-                    mmcv.dump(single_anno, single_anno_json_dir)
-                    mmcv.imwrite(segmentimage, seg_path)
-            
+                color = random.choice(PALETTE)
+                while color in color_box:
+                    color = random.choice(PALETTE)
+                color_box.append(color)
+                segmentimage[bkmask==1] = color
+                B = color[0]
+                G = color[1]
+                R = color[2]
+
+                single_seg_anno.append(
+                    dict(
+                        category_id = cs_pb2.CameraSegmentation.TYPE_UNDEFINED ,
+                        id = R+G*256+B*256*256
+                    )
+                )
+                single_anno['segmentation'] = single_seg_anno
+                single_anno_json_dir = f'{self.seg_json_save_dir}{str(img.name - 1)}/' + \
+                    f'{self.prefix}{str(file_idx).zfill(3)}' + \
+                    f'{str(frame_idx).zfill(3)}.json'
+                mmcv.dump(single_anno, single_anno_json_dir)
+                mmcv.imwrite(segmentimage, seg_path)
+        
     def save_image(self, frame, file_idx, frame_idx):
         """Parse and save the images in png format.
 
@@ -482,6 +482,8 @@ class Waymo2KITTI(object):
             file_idx (int): Current file index.
             frame_idx (int): Current frame index.
         """
+        # 注意 2.6.0 版本的 frame_utils.parse_range_image_and_camera_projection(frame) 返回值有 4 个
+        # 当前版本为 2.1.0
         range_images, camera_projections, range_image_top_pose = \
             frame_utils.parse_range_image_and_camera_projection(frame)
 
