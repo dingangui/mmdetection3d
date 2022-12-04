@@ -311,7 +311,7 @@ def create_waymo_info_file(data_path,
     # Generate train info
     waymo_infos_train = waymo_infos_gatherer_trainval.gather(train_img_ids)
     num_points_in_gt_calculater.calculate(waymo_infos_train)
-    filename = save_path / f'{pkl_prefix}_infos_train_10.pkl'
+    filename = save_path / f'{pkl_prefix}_infos_train.pkl'
     print(f'Waymo info train file is saved to {filename}')
     mmcv.dump(waymo_infos_train, filename)
 
