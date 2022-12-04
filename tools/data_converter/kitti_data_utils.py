@@ -355,8 +355,7 @@ class WaymoInfoGatherer:
     def gather_single(self, idx):
         root_path = Path(self.path)
         info = {}
-        # pc_info = {'num_features': 6}
-        pc_info = {}
+        pc_info = {'num_features': 6}
         calib_info = {}
 
         # image_info = {'image_idx': idx}
