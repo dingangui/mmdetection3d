@@ -174,19 +174,13 @@ class Waymo2KITTI(object):
         self.seg_json_save_dir = f'{self.save_dir}/seg_json_'
         self.create_folder()
 
-    def get_file_size(self, filePath):
-        filePath = str(filePath)
-        fsize = os.path.getsize(filePath)
-        fsize = fsize/float(1024*1024)
-        # return round(fsize,20)
-        return fsize
-
     def convert(self):
         """Convert action."""
         print('Start converting ...')
-        # 单线程
+        # 测试
         # self.convert_one(0)
         
+        # 单线程
         # for i in range(len(self)):
         #     self.convert_one(i)
         
@@ -200,11 +194,7 @@ class Waymo2KITTI(object):
         Args:
             file_idx (int): Index of the file to be converted.
         """
-        # 全景分割里有 3 个 tfrecord 文件会出错, 需要单独处理 
-        with open('log/filelist/pass_pseg_training_files.txt','r') as file:
-            pass_pseg_training_files = file.readlines()
         pathname = self.tfrecord_pathnames[file_idx]
-        # pathname = '/hdd/1000w/waymo/waymo_format/training/segment-5458962501360340931_3140_000_3160_000_with_camera_labels.tfrecord'
         dataset = tf.data.TFRecordDataset(pathname, compression_type='')
 
         for frame_idx, data in enumerate(dataset):
@@ -215,25 +205,27 @@ class Waymo2KITTI(object):
                     and frame.context.stats.location
                     not in self.selected_waymo_locations):
                 continue
-            # 全景分割里有 3 个 tfrecord 文件会出错, 需要单独处理 
+            # 注意: 全景分割里可能有 3 个 tfrecord 文件会出错, 导致程序阻塞
+            # 运行时如果遇到请排查出来, 将其排查出处理的列表, 比如用下面两行
             # if pathname + '\n' not in pass_pseg_training_files:
             #     self.save_seg(frame, file_idx, frame_idx)
+            self.save_seg(frame, file_idx, frame_idx)
             # 无需处理
-            # self.save_image(frame, file_idx, frame_idx)
+            self.save_image(frame, file_idx, frame_idx)
             # 这一部分的处理逻辑和 caizhongang 有较大区别
             # cai 只处理了 front camera(camera.name == 1), 这里则处理了5个相机
-            # self.save_calib(frame, file_idx, frame_idx)
+            self.save_calib(frame, file_idx, frame_idx)
             # 和 caizhongang 的相比, 多了 elongation, mask_indices
-            # self.save_lidar(frame, file_idx, frame_idx)
+            self.save_lidar(frame, file_idx, frame_idx)
             self.save_depth(frame, file_idx, frame_idx)
             # 无需修改
-            # self.save_pose(frame, file_idx, frame_idx)
+            self.save_pose(frame, file_idx, frame_idx)
             # 原版无, 昊哥建议增加
-            # self.save_timestamp(frame, file_idx, frame_idx)
+            self.save_timestamp(frame, file_idx, frame_idx)
 
-            # if not self.test_mode:
-            #     # save_track_id 为 false, caizhongang 是 true, 这点和之前不一样, 影响不大
-            #     self.save_label(frame, file_idx, frame_idx)
+            if not self.test_mode:
+                # save_track_id 为 false, caizhongang 是 true, 这点和之前不一样, 影响不大
+                self.save_label(frame, file_idx, frame_idx)
 
 
         # 生成已完成导出的文件列表, 根据日期自动保存到文件
@@ -243,7 +235,6 @@ class Waymo2KITTI(object):
             if filename.find('finished_filelist_') == 0 and filename.split('finished_filelist_')[1].find(suffix) == 0:
                 suffix_num += 1
         filename = 'log/filelist/finished_filelist_' + suffix + "_" + str(suffix_num) + '.txt'
-        
         with open(filename,'a') as finished_filelist:
             finished_filelist.write(f'{pathname}\n')
             
@@ -252,7 +243,8 @@ class Waymo2KITTI(object):
         return len(self.tfrecord_pathnames)
 
     def save_seg(self, frame, file_idx, frame_idx):
-        """Parse and save the images in png format.
+        """处理全景分割的图片
+        Parse and save the images in png format.
         基于 waymo-open-dataset 2.6.0 才能解析
         Args:
             frame (:obj:`Frame`): Open dataset frame proto.
@@ -421,7 +413,7 @@ class Waymo2KITTI(object):
 
         和 caizhongang 相比, 多了 elongation, mask_indices
         """
-        range_images, camera_projections, range_image_top_pose = \
+        range_images, camera_projections, _, range_image_top_pose = \
             frame_utils.parse_range_image_and_camera_projection(frame)
 
         # First return
@@ -483,8 +475,8 @@ class Waymo2KITTI(object):
             frame_idx (int): Current frame index.
         """
         # 注意 2.6.0 版本的 frame_utils.parse_range_image_and_camera_projection(frame) 返回值有 4 个
-        # 当前版本为 2.1.0
-        range_images, camera_projections, range_image_top_pose = \
+        # 注意 2.1.0 版本的有 3 个
+        range_images, camera_projections, _, range_image_top_pose = \
             frame_utils.parse_range_image_and_camera_projection(frame)
 
         # First return
@@ -504,9 +496,9 @@ class Waymo2KITTI(object):
         cp_points_0_concat = np.concatenate(cp_points_0, axis=0)
         
         # 可视化 lidar 点云
-        # filename = f'{str(self.prefix)}{str(file_idx).zfill(3)}' +  f'{str(frame_idx).zfill(3)}' 
-        # os.makedirs(f'visualized_results/Lidar_Coordinate_Points_0', exist_ok=True)
-        # create_output(points_0_concat, np.ones_like(points_0_concat) * 255, f'visualized_results/Lidar_Coordinate_Points_0/{filename}.ply')
+        filename = f'{str(self.prefix)}{str(file_idx).zfill(3)}' +  f'{str(frame_idx).zfill(3)}' 
+        os.makedirs(f'visualized_results/Lidar_Coordinate_Points_0', exist_ok=True)
+        create_output(points_0_concat, np.ones_like(points_0_concat) * 255, f'visualized_results/Lidar_Coordinate_Points_0/{filename}.ply')
         
         # transform_mats: 保存 lidar 坐标系到相机坐标系的转换矩阵
         transform_mats = []

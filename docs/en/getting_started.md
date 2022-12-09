@@ -18,7 +18,7 @@ If you are experienced with PyTorch and have already installed it, just skip thi
 **Step 1.** Create a conda environment and activate it.
 
 ```shell
-conda create --name openmmlab python=3.8 -y
+conda create --name openmmlab python=3.9 -y
 conda activate openmmlab
 ```
 
@@ -50,7 +50,7 @@ pip install openmim
 mim install mmcv-full
 mim install mmdet
 mim install mmsegmentation
-git clone https://github.com/open-mmlab/mmdetection3d.git
+git clone https://github.com/dingangui/mmdetection3d.git
 cd mmdetection3d
 pip install -e .
 ```
