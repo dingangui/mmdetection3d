@@ -679,6 +679,8 @@ class Waymo2KITTI(object):
 
             rotation_y = -obj.box.heading - np.pi / 2
             track_id = obj.id
+            speed_x = obj.metadata.speed_x
+            speed_y = obj.metadata.speed_y
 
             # not available
             truncated = 0
@@ -686,13 +688,14 @@ class Waymo2KITTI(object):
             alpha = -10
 
             line = my_type + \
-                ' {} {} {} {} {} {} {} {} {} {} {} {} {} {}\n'.format(
+                ' {} {} {} {} {} {} {} {} {} {} {} {} {} {} {} {}\n'.format(
                     round(truncated, 2), occluded, round(alpha, 2),
                     round(bounding_box[0], 2), round(bounding_box[1], 2),
                     round(bounding_box[2], 2), round(bounding_box[3], 2),
                     round(height, 2), round(width, 2), round(length, 2),
                     round(x, 2), round(y, 2), round(z, 2),
-                    round(rotation_y, 2))
+                    round(rotation_y, 2),
+                    round(speed_x, 2), round(speed_y, 2))
 
             if self.save_track_id:
                 line_all = line[:-1] + ' ' + name + ' ' + track_id + '\n'
